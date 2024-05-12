@@ -8,16 +8,17 @@ set.seed(1)
 data <- read.csv("data/data_100452172.csv")
 nobs <- nrow(data)  # No. of observations
 
+# PART 1: Bootstrap resampling for robust linear regression model
 # Build the RLM
 rlm_model <- rlm(y ~ x1 + x2 + x3, data = data)
-coef(summary(rlm_model))
+coef_summary <- coef(summary(rlm_model))
 
 # Bootstrap resampling
 rrpair <- function(x, xdata) {
   rlm(y ~ x1 + x2 + x3, data = xdata[x,])$coefficients  # Extract coefficients
 }
 
-B <- 1000
+B <- 170  # Number of bootstrap samples
 bootstrap_results <- bootstrap(x = 1:nobs, nboot = B, theta = rrpair, xdata = data)
 
 # Function to calculate percentile confidence intervals
@@ -28,46 +29,28 @@ calculate_ci <- function(estimates) {
 }
 
 # Calculate the CIs for each of the coefficients
-boot_ci <- apply(bootstrap_results$thetastar, MARGIN = 2, calculate_ci)
-head(boot_ci)
+boot_ci <- apply(bootstrap_results$thetastar, MARGIN = 1, calculate_ci)
+head(boot_ci) # x3 is the least significant variable
+# TODO: Is this the right way to determine the least significant variable?
 
-
-# Initial model with all covariates
-initial_model <- rlm(y ~ x1 + x2 + x3, data = data)
-
-# Function to fit model with selected covariates
-fit_model <- function(covariates) {
-  formula <- as.formula(paste("y ~", paste(covariates, collapse = "+")))
-  return(rlm(formula, data = data))
+# PART 2: Backward elimination
+B <- 48 # TODO: How to choose the number of bootstrap samples?
+# Bootstrap resampling
+rrpair <- function(x, xdata) {
+  rlm(y ~ x1 + x2, data = xdata[x,])$coefficients  # Extract coefficients
 }
+rlm_model <- rlm(y ~ x1 + x2, data = data[, -4])
 
-# Backward elimination
-covariates <- c("x1", "x2", "x3")
-while (length(covariates) > 0) {
-  # Fit model with selected covariates
-  current_model <- fit_model(covariates)
-  
-  # Calculate bootstrap confidence intervals for coefficients
-  bootstrap_results <- bootstrap(x = 1:nobs, nboot = B, theta = rrpair, xdata = data)
-  boot_ci <- apply(bootstrap_results$thetastar, MARGIN = 2, calculate_ci)
-  
-  # Check which covariates to remove
-  remove_covariates <- covariates[boot_ci[1, ] > 0 & boot_ci[2, ] < 0]  # Remove covariates with confidence intervals including zero
-  
-  # If no covariates to remove, break the loop
-  if (length(remove_covariates) == 0) {
-    break
-  }
-  
-  # Update covariates by removing non-significant ones
-  covariates <- setdiff(covariates, remove_covariates)
-}
+# PART 3: Confidence intervals for the remaining variables
+bootstrap_results <- bootstrap(x = 1:nobs, nboot = B, theta = rrpair, xdata = data[, -4])
+boot_ci <- apply(bootstrap_results$thetastar, MARGIN = 1, calculate_ci)
+head(boot_ci) # Both x1 and x2 are significant
 
-# Print the final selected covariates
-print("Final selected covariates:")
-print(covariates)
-
-# Print the final regression model
-final_model <- fit_model(covariates)
-print(summary(final_model))
-
+# PART 4: Prediction
+# TODO: Mean response?
+b_0 <- mean(boot_ci[, 1])
+b_1 <- mean(boot_ci[, 2])
+b_2 <- mean(boot_ci[, 3])
+rlm_model.predict <- predict(rlm_model, newdata = data.frame(x1 = 14, x2 = 14))
+rlm_model.predict
+b_0 + b_1 * 14 + b_2 * 14
