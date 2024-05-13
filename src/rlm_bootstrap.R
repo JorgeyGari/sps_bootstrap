@@ -21,28 +21,19 @@ rrpair <- function(x, xdata) {
 }
 
 B <- 2000 # Number of bootstrap samples
-bootstrap_results <-
-  bootstrap(x = 1:nobs, nboot = B, theta = rrpair, xdata = data)$thetastar
-
-# Function to calculate percentile confidence intervals
-# FIXME: Basic CI
-calculate_ci <- function(estimates) {
-  ci_intercept <- 2 * coef['(Intercept)'] - quantile(estimates[1,], c(0.975, 0.025))
-  ci_x1 <- 2 * coef['x1'] - quantile(estimates[2,], c(0.975, 0.025))
-  ci_x2 <- 2 * coef['x2'] - quantile(estimates[3,], c(0.975, 0.025))
-  ci_x3 <- 2 * coef['x3'] - quantile(estimates[4,], c(0.975, 0.025))
-  
-  ci_table <- cbind(ci_intercept, ci_x1, ci_x2, ci_x3)
-  
-  return(ci_table)
-}
+estimates <- bootstrap(x = 1:nobs, nboot = B, theta = rrpair, xdata = data)$thetastar
 
 # Calculate the CIs for each of the coefficients
-boot_ci <- calculate_ci(bootstrap_results)
+ci_intercept <- 2 * coef['(Intercept)'] - quantile(estimates[1,], c(0.975, 0.025))
+ci_x1 <- 2 * coef['x1'] - quantile(estimates[2,], c(0.975, 0.025))
+ci_x2 <- 2 * coef['x2'] - quantile(estimates[3,], c(0.975, 0.025))
+ci_x3 <- 2 * coef['x3'] - quantile(estimates[4,], c(0.975, 0.025))
+
+# Combine the CIs into a table
+boot_ci <- cbind(ci_intercept, ci_x1, ci_x2, ci_x3)
 boot_ci # x3 is not significant because the 0 is contained in the CI
 
 # PART 2: Backward elimination
-# FIXME: Basic CI
 # Bootstrap resampling
 rrpair <- function(x, xdata) {
   rlm(y ~ x1 + x2, data = xdata[x, ], maxit = maxit)$coefficients # Extract coefficients
@@ -50,15 +41,19 @@ rrpair <- function(x, xdata) {
 rlm_model <- rlm(y ~ x1 + x2, data = data[, -4], maxit = maxit)
 
 # PART 3: Confidence intervals for the remaining variables
-bootstrap_results <- bootstrap(x = 1:nobs, nboot = B, theta = rrpair, xdata = data[, -4])
-boot_ci <- apply(bootstrap_results$thetastar, MARGIN = 1, calculate_ci)
-head(boot_ci) # Both x1 and x2 are significant
+estimates <- bootstrap(x = 1:nobs, nboot = B, theta = rrpair, xdata = data[, -4])$thetastar
+ci_intercept <- 2 * coef['(Intercept)'] - quantile(estimates[1,], c(0.975, 0.025))
+ci_x1 <- 2 * coef['x1'] - quantile(estimates[2,], c(0.975, 0.025))
+ci_x2 <- 2 * coef['x2'] - quantile(estimates[3,], c(0.975, 0.025))
+
+boot_ci <- cbind(ci_intercept, ci_x1, ci_x2)
+
+boot_ci # Both x1 and x2 are significant
 
 # PART 4: Prediction
 # TODO: Mean response?
 b_0 <- mean(boot_ci[, 1])
 b_1 <- mean(boot_ci[, 2])
 b_2 <- mean(boot_ci[, 3])
-rlm_model.predict <- predict(rlm_model, newdata = data.frame(x1 = 14, x2 = 14))
-rlm_model.predict
-b_0 + b_1 * 14 + b_2 * 14
+prediction <- b_0 + b_1 * 14 + b_2 * 14
+print(prediction)
