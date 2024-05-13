@@ -51,7 +51,6 @@ boot_ci <- cbind(ci_intercept, ci_x1, ci_x2)
 boot_ci # Both x1 and x2 are significant
 
 # PART 4: Prediction
-# TODO: Mean response?
 b_0 <- mean(boot_ci[, 1])
 b_1 <- mean(boot_ci[, 2])
 b_2 <- mean(boot_ci[, 3])
