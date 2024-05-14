@@ -56,27 +56,9 @@ b_1 <- mean(boot_ci[, 2])
 b_2 <- mean(boot_ci[, 3])
 y_hat <- b_0 + b_1 * 14 + b_2 * 14
 
-# Confidence level (e.g., 95%)
-confidence_level <- 0.95
+# Calculate standard error of prediction
+se_pred <- sd(rlm_model$residuals) * sqrt(1 + 1/nobs + ((14 - mean(data$x1))^2) / sum((data$x1 - mean(data$x1))^2))
 
-# Z-value for the given confidence level
-z_value <- qnorm((1 + confidence_level) / 2)
-
-# Standard errors for b_0, b_1, and b_2
-se_b0 <- sd(estimates[1,])
-se_b1 <- sd(estimates[2,])
-se_b2 <- sd(estimates[3,])
-
-# Calculate standard error for y_hat
-se_y_hat <- sqrt((se_b0)^2 + (14 * se_b1)^2 + (14 * se_b2)^2)
-
-# Calculate margin of error
-margin_of_error <- z_value * se_y_hat
-
-# Calculate lower and upper bounds of the confidence interval for y_hat
-lower_bound <- y_hat - margin_of_error
-upper_bound <- y_hat + margin_of_error
-
-# Confidence interval for y_hat
-ci_y_hat <- c(lower_bound, upper_bound)
-
+# Prediction confidence interval
+ci_pred <- y_hat + qt(c(0.025, 0.975), df = nobs - 3) * se_pred
+ci_pred
